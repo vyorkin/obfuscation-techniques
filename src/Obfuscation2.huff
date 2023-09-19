@@ -1,0 +1,43 @@
+// Scrambling calldata
+
+#define constant _JUMPTABLE = 0x002e003600020003000400050006000700080009000A000B000C000D000E000F
+
+// 0x002e
+// 0x0036
+// 0x0002
+// ......
+
+#define function foo() pure returns ()
+#define function bar() pure returns ()
+
+#define macro MAIN() = takes(0) returns(0) {
+    [_JUMPTABLE]        // [_JUMPTABLE]: load the jump table
+    0x00 calldataload   // [calldata, _JUMPTABLE]: load the first 32 bytes
+    0x1F byte           // [calldata{32}, _JUMPTABLE]: take the first of the calldata
+    shr                 // [_JUMPTABLE_shifted]: shift the jumptable right by the calldata{32} bytes
+
+    // original: 0x002C006000020003000400050006000700080009000A000B000C000D000E000F
+    // shifted:  0x000000000000000000000000000000000000000000000000000000000000002C
+
+    0xffff              // [0xffff, _JUMPTABLE_shifted]: push the 2-bytes long mask on the stack
+    and                 // [destination_pc]: apply the mask
+
+    jump                // []: jump to the target function
+
+    0x00 dup1 revert    // []: revert if no match is found
+
+    FOO:
+      foo()
+    BAR:
+      bar()
+}
+
+#define macro foo() = takes(0) returns(0) { // 0x2d
+  0x01 0x00 mstore
+  0x00 0x00 return
+}
+
+#define macro bar() = takes(0) returns(0) { // 0x34
+  0x02 0x00 mstore
+  0x00 0x00 return
+}
